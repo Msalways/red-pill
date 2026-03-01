@@ -1,0 +1,6 @@
+[submodule "packages/js"]
+	path = packages/js
+	url = https://github.com/Msalways/red-pill-js.git
+[submodule "packages/python"]
+	path = packages/python
+	url = https://github.com/Msalways/red-pill-py.git
