@@ -1,0 +1,127 @@
+name: Publish JS SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      version_type:
+        required: true
+        type: string
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  publish:
+    name: Bump version, build, test & publish to npm
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: packages/js/redpill/package-lock.json
+
+      - name: Install dependencies
+        working-directory: packages/js/redpill
+        run: npm ci
+
+      - name: Type check
+        working-directory: packages/js/redpill
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: packages/js/redpill
+        run: npm test
+
+      - name: Build
+        working-directory: packages/js/redpill
+        run: npm run build
+
+      - name: Bump version
+        id: version_bump
+        working-directory: packages/js/redpill
+        run: |
+          # Bump the version without creating a git tag yet
+          NEW_VERSION=$(npm version ${{ inputs.version_type }} --no-git-tag-version)
+          # Strip the leading 'v' for use in tag/release names
+          echo "new_version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+          echo "tag_name=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bumped to $NEW_VERSION"
+
+      - name: Commit version bump
+        run: |
+          git add packages/js/redpill/package.json packages/js/redpill/package-lock.json
+          git commit -m "chore(js-sdk): release v${{ steps.version_bump.outputs.new_version }}"
+
+      - name: Create git tag
+        run: |
+          git tag "js-v${{ steps.version_bump.outputs.new_version }}" -m "JS SDK v${{ steps.version_bump.outputs.new_version }}"
+
+      - name: Publish to npm
+        if: ${{ !inputs.dry_run }}
+        working-directory: packages/js/redpill
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Dry run — show what would be published
+        if: ${{ inputs.dry_run }}
+        working-directory: packages/js/redpill
+        run: npm publish --dry-run
+
+      - name: Push commit and tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin "js-v${{ steps.version_bump.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "js-v${{ steps.version_bump.outputs.new_version }}"
+          name: "JS SDK v${{ steps.version_bump.outputs.new_version }}"
+          generate_release_notes: true
+          body: |
+            ## Redpill JS SDK v${{ steps.version_bump.outputs.new_version }}
+
+            **Install:** `npm install redpill@${{ steps.version_bump.outputs.new_version }}`
+
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/js/redpill/README.md) for details.
+          token: ${{ secrets.GITHUB_TOKEN }}

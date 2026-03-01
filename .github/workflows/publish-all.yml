@@ -1,0 +1,65 @@
+name: Publish All SDKs
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Root-level unified publisher. Bumps & publishes both the JS and Python SDKs
+# with the same version type in a single GitHub Actions run.
+#
+# Usage: GitHub → Actions → "Publish All SDKs" → Run workflow
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type (applies to BOTH SDKs)'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Dry run (skip real publish, use Test PyPI / npm --dry-run)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  publish-js:
+    name: Publish JS SDK
+    uses: ./.github/workflows/publish-js.yml
+    with:
+      version_type: ${{ inputs.version_type }}
+      dry_run: ${{ inputs.dry_run }}
+    secrets: inherit
+
+  publish-python:
+    name: Publish Python SDK
+    uses: ./.github/workflows/publish-python.yml
+    with:
+      version_type: ${{ inputs.version_type }}
+      dry_run: ${{ inputs.dry_run }}
+    secrets: inherit
+
+  summary:
+    name: Release Summary
+    needs: [publish-js, publish-python]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Print summary
+        run: |
+          echo "## 🚀 Redpill Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| SDK | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| JS (npm) | ${{ needs.publish-js.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python (PyPI) | ${{ needs.publish-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version type: **${{ inputs.version_type }}**" >> $GITHUB_STEP_SUMMARY
+          echo "Dry run: **${{ inputs.dry_run }}**" >> $GITHUB_STEP_SUMMARY
