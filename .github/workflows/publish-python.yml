@@ -65,6 +65,13 @@ jobs:
       - name: Run tests
         working-directory: packages/python/redpill
         run: pytest tests/ -v
+      
+      - name: Reset submodule to remote state
+        run: |
+          cd packages/python
+          git fetch origin
+          git reset --hard origin/master
+          git clean -fd
 
       - name: Bump version
         id: version_bump
