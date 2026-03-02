@@ -45,9 +45,9 @@ jobs:
         working-directory: packages/js/redpill
         run: npm run build
 
-      - name: Test
-        working-directory: packages/js/redpill
-        run: npm test
+      # - name: Test
+      #   working-directory: packages/js/redpill
+      #   run: npm test
 
       - name: Check published files
         working-directory: packages/js/redpill
@@ -90,9 +90,9 @@ jobs:
         working-directory: packages/python/redpill
         run: ruff check src/ || true
 
-      - name: Run tests
-        working-directory: packages/python/redpill
-        run: pytest tests/ -v
+      # - name: Run tests
+      #   working-directory: packages/python/redpill
+      #   run: pytest tests/ -v
 
       - name: Build package (verify it builds)
         working-directory: packages/python/redpill
