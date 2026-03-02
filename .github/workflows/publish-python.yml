@@ -186,4 +186,4 @@ jobs:
             rp = Redpill().llm(your_llm_fn).build()
             result = rp.generate_spec(data=your_data, prompt="show tickets by status")
             ```
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
