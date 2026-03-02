@@ -124,5 +124,5 @@ jobs:
 
             **Install:** `npm install redpill@${{ steps.version_bump.outputs.new_version }}`
 
-            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/js/redpill/README.md) for details.
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/js/README.md) for details.
           token: ${{ secrets.GITHUB_TOKEN }}
