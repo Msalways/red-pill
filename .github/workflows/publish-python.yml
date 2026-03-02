@@ -130,6 +130,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/Msalways/red-pill-py.git
           git checkout ${{ github.ref_name }}
           git add src/redpill/__init__.py pyproject.toml
           git commit -m "chore(py-sdk): release v${{ steps.version_bump.outputs.new_version }}"
