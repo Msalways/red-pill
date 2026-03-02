@@ -126,10 +126,17 @@ jobs:
           twine check dist/*
 
       - name: Commit version bump
+        working-directory: packages/python/redpill
         run: |
-          git add packages/python/redpill/src/redpill/__init__.py \
-                  packages/python/redpill/pyproject.toml
+          git add src/redpill/__init__.py pyproject.toml
           git commit -m "chore(py-sdk): release v${{ steps.version_bump.outputs.new_version }}"
+          git push
+
+      - name: Update submodule reference
+        run: |
+          git submodule update --recursive --remote
+          git add packages/python
+          git commit -m "chore: update python submodule to v${{ steps.version_bump.outputs.new_version }}"
 
       - name: Create git tag
         run: |
