@@ -41,7 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
 
@@ -87,8 +87,11 @@ jobs:
 
       - name: Commit version bump
         run: |
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/Msalways/red-pill-js.git
+          git checkout ${{ github.ref_name }}
           git add packages/js/redpill/package.json packages/js/redpill/package-lock.json
           git commit -m "chore(js-sdk): release v${{ steps.version_bump.outputs.new_version }}"
+          git push origin ${{ github.ref_name }}
 
       - name: Create git tag
         run: |
@@ -125,4 +128,4 @@ jobs:
             **Install:** `npm install redpill@${{ steps.version_bump.outputs.new_version }}`
 
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/js/README.md) for details.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
