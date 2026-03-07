@@ -130,7 +130,7 @@ jobs:
           body: |
             ## Redpill JS SDK v${{ steps.version_bump.outputs.new_version }}
 
-            **Install:** `npm install redpill@${{ steps.version_bump.outputs.new_version }}`
+            **Install:** `npm install redpillx@${{ steps.version_bump.outputs.new_version }}`
 
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/packages/js/README.md) for details.
           token: ${{ secrets.PAT_TOKEN }}
