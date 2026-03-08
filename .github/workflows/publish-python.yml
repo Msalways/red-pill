@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_type:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
         type: choice
         options:
@@ -12,16 +12,7 @@ on:
           - minor
           - major
       dry_run:
-        description: 'Dry run (skip actual publish, use Test PyPI)'
-        required: false
-        type: boolean
-        default: false
-  workflow_call:
-    inputs:
-      version_type:
-        required: true
-        type: string
-      dry_run:
+        description: "Dry run (publish to Test PyPI)"
         required: false
         type: boolean
         default: false
@@ -32,17 +23,17 @@ permissions:
 
 jobs:
   publish:
-    name: Bump version, build, test & publish to PyPI
+    name: Build, test & publish Python SDK
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
-          submodules: recursive
           fetch-depth: 0
+          submodules: recursive
 
       - name: Configure git identity
         run: |
@@ -52,11 +43,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: packages/python/redpill/pyproject.toml
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: packages/python/redpillx/pyproject.toml
 
-      - name: Install package + dev deps
+      - name: Install dependencies
         working-directory: packages/python/redpillx
         run: |
           python -m pip install --upgrade pip
@@ -65,13 +56,6 @@ jobs:
       - name: Run tests
         working-directory: packages/python/redpillx
         run: pytest tests/ -v
-        
-      - name: Reset submodule to remote state
-        run: |
-          cd packages/python
-          git fetch origin
-          git reset --hard ${{ github.ref_name }}
-          git clean -fd
 
       - name: Bump version
         id: version_bump
@@ -87,37 +71,40 @@ jobs:
 
           match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
           if not match:
-              sys.exit("Could not find __version__ in __init__.py")
+              sys.exit("Could not find __version__")
 
           old = match.group(1)
           major, minor, patch = map(int, old.split("."))
 
           if bump == "major":
-              major, minor, patch = major + 1, 0, 0
+              major += 1
+              minor = 0
+              patch = 0
           elif bump == "minor":
-              major, minor, patch = major, minor + 1, 0
+              minor += 1
+              patch = 0
           else:
               patch += 1
 
           new = f"{major}.{minor}.{patch}"
-          new_content = content.replace(f'__version__ = "{old}"', f'__version__ = "{new}"')
-          new_content = new_content.replace(f"__version__ = '{old}'", f"__version__ = '{new}'")
 
-          with open("src/redpillx/__init__.py", "w") as f:
-              f.write(new_content)
+          content = content.replace(old, new)
 
-          # Also update pyproject.toml version
+          with open("src/redpillx/__init__.py","w") as f:
+              f.write(content)
+
           with open("pyproject.toml") as f:
               toml = f.read()
 
-          toml = re.sub(r'(?m)^version\s*=\s*"[^"]+"', f'version = "{new}"', toml, count=1)
-          with open("pyproject.toml", "w") as f:
+          toml = re.sub(r'(?m)^version\s*=\s*"[^"]+"', f'version = "{new}"', toml)
+
+          with open("pyproject.toml","w") as f:
               f.write(toml)
 
-          print(f"Bumped {old} → {new}")
-          with open("$GITHUB_OUTPUT", "a") as out:
+          print(f"{old} -> {new}")
+
+          with open("$GITHUB_OUTPUT","a") as out:
               out.write(f"new_version={new}\n")
-              out.write(f"old_version={old}\n")
           EOF
 
       - name: Build package
@@ -133,26 +120,23 @@ jobs:
           twine check dist/*
 
       - name: Commit version bump
-        working-directory: packages/python/redpillx
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/Msalways/red-pill-py.git
-          git checkout ${{ github.ref_name }}
-          git add src/redpillx/__init__.py pyproject.toml
+          git add packages/python/redpillx/src/redpillx/__init__.py
+          git add packages/python/redpillx/pyproject.toml
           git commit -m "chore(py-sdk): release v${{ steps.version_bump.outputs.new_version }}"
-          git push origin ${{ github.ref_name }}
 
-      - name: Update submodule reference
+      - name: Pull latest changes
         run: |
-          git submodule update --recursive --remote
-          git add packages/python
-          git commit -m "chore: update python submodule to v${{ steps.version_bump.outputs.new_version }}"
+          git pull --rebase origin ${{ github.ref_name }}
+
+      - name: Push commit
+        run: |
+          git push origin ${{ github.ref_name }}
 
       - name: Create git tag
         run: |
-          git tag "py-v${{ steps.version_bump.outputs.new_version }}" \
-            -m "Python SDK v${{ steps.version_bump.outputs.new_version }}"
+          git tag py-v${{ steps.version_bump.outputs.new_version }}
+          git push origin py-v${{ steps.version_bump.outputs.new_version }}
 
       - name: Publish to PyPI
         if: ${{ !inputs.dry_run }}
@@ -162,36 +146,41 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: twine upload dist/*
 
-      - name: Dry run — publish to Test PyPI
+      - name: Publish to Test PyPI (dry run)
         if: ${{ inputs.dry_run }}
         working-directory: packages/python/redpillx
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        run: twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-
-      - name: Push commit and tag
-        if: ${{ !inputs.dry_run }}
         run: |
-          git push origin HEAD:${{ github.ref_name }}
-          git push origin "py-v${{ steps.version_bump.outputs.new_version }}"
+          twine upload \
+          --repository-url https://test.pypi.org/legacy/ \
+          dist/*
 
       - name: Create GitHub Release
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "py-v${{ steps.version_bump.outputs.new_version }}"
-          name: "Python SDK v${{ steps.version_bump.outputs.new_version }}"
+          tag_name: py-v${{ steps.version_bump.outputs.new_version }}
+          name: Python SDK v${{ steps.version_bump.outputs.new_version }}
           generate_release_notes: true
           body: |
             ## Redpill Python SDK v${{ steps.version_bump.outputs.new_version }}
 
-            **Install:** `pip install redpillx==${{ steps.version_bump.outputs.new_version }}`
+            Install:
 
-            ### Quick start
+            pip install redpillx==${{ steps.version_bump.outputs.new_version }}
+
+            Example:
+
             ```python
             from redpillx import Redpill
+
             rp = Redpill().llm(your_llm_fn).build()
-            result = rp.generate_spec(data=your_data, prompt="show tickets by status")
+
+            result = rp.generate_spec(
+                data=your_data,
+                prompt="show tickets by status"
+            )
             ```
           token: ${{ secrets.PAT_TOKEN }}
