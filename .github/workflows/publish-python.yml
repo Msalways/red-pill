@@ -38,6 +38,11 @@ jobs:
         run: |
           git submodule update --init --recursive
 
+      - name: Verify repository structure
+        run: |
+          echo "Listing python package structure:"
+          ls -R packages/python || true
+
       - name: Configure git
         run: |
           git config --global user.name "github-actions[bot]"
@@ -48,7 +53,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: packages/python/redpillx/pyproject.toml
+          cache-dependency-path: "**/pyproject.toml"
 
       - name: Install dependencies
         working-directory: packages/python/redpillx
@@ -182,23 +187,4 @@ jobs:
           tag_name: py-v${{ steps.version_bump.outputs.new_version }}
           name: Python SDK v${{ steps.version_bump.outputs.new_version }}
           generate_release_notes: true
-          body: |
-            ## Redpill Python SDK v${{ steps.version_bump.outputs.new_version }}
-
-            Install:
-
-            pip install redpillx==${{ steps.version_bump.outputs.new_version }}
-
-            Example:
-
-            ```python
-            from redpillx import Redpill
-
-            rp = Redpill().llm(your_llm_fn).build()
-
-            result = rp.generate_spec(
-                data=your_data,
-                prompt="show tickets by status"
-            )
-            ```
           token: ${{ secrets.PAT_TOKEN }}

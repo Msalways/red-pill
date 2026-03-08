@@ -74,28 +74,28 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-          cache-dependency-path: packages/python/redpill/pyproject.toml
+          cache-dependency-path: packages/python/redpillx/pyproject.toml
 
       - name: Install package + dev deps
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
       - name: Run type check (mypy)
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: mypy src/ --ignore-missing-imports || true
 
       - name: Lint (ruff)
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: ruff check src/ || true
 
       # - name: Run tests
-      #   working-directory: packages/python/redpill
+      #   working-directory: packages/python/redpillx
       #   run: pytest tests/ -v
 
       - name: Build package (verify it builds)
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           pip install build
           python -m build --wheel
