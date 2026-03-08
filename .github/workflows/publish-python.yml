@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_type:
-        description: "Version bump type."
+        description: "Version bump type"
         required: true
         type: choice
         options:
@@ -12,7 +12,7 @@ on:
           - minor
           - major
       dry_run:
-        description: "Dry run (publish to Test PyPI)"
+        description: "Publish to TestPyPI instead"
         required: false
         type: boolean
         default: false
@@ -23,23 +23,22 @@ permissions:
 
 jobs:
   publish:
-    name: Build, test & publish Python SDK
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 0
           submodules: recursive
 
-      - name: Initialize submodules
+      - name: Init submodules
         run: |
           git submodule update --init --recursive
 
-      - name: Configure git identity
+      - name: Configure git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -48,7 +47,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
+          cache: pip
           cache-dependency-path: packages/python/redpillx/pyproject.toml
 
       - name: Install dependencies
@@ -59,14 +58,15 @@ jobs:
 
       - name: Run tests
         working-directory: packages/python/redpillx
-        run: pytest tests/ -v
+        run: |
+          pytest tests -v
 
       - name: Bump version
         id: version_bump
         working-directory: packages/python/redpillx
         run: |
-          python - <<'EOF'
-          import re, sys
+          python << 'EOF'
+          import re, sys, os
 
           bump = "${{ inputs.version_type }}"
 
@@ -107,7 +107,7 @@ jobs:
 
           print(f"{old} -> {new}")
 
-          with open("$GITHUB_OUTPUT","a") as out:
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               out.write(f"new_version={new}\n")
           EOF
 
@@ -117,7 +117,7 @@ jobs:
           pip install build
           python -m build
 
-      - name: Check package
+      - name: Validate package
         working-directory: packages/python/redpillx
         run: |
           pip install twine
@@ -127,22 +127,33 @@ jobs:
         working-directory: packages/python
         run: |
           cd redpillx
+
           git add src/redpillx/__init__.py pyproject.toml
-          git commit -m "chore(py-sdk): release v${{ steps.version_bump.outputs.new_version }}" || echo "No changes"
+          git commit -m "chore(py-sdk): release v${{ steps.version_bump.outputs.new_version }}" || echo "no changes"
+
           git pull --rebase origin ${{ github.ref_name }} || true
           git push origin ${{ github.ref_name }}
 
-      - name: Update submodule pointer in parent repo
+      - name: Update parent repo submodule pointer
         run: |
           git add packages/python
-          git commit -m "chore: update python SDK to v${{ steps.version_bump.outputs.new_version }}" || echo "No changes"
+          git commit -m "chore: update python sdk to v${{ steps.version_bump.outputs.new_version }}" || echo "no changes"
+
           git pull --rebase origin ${{ github.ref_name }} || true
           git push origin ${{ github.ref_name }}
 
-      - name: Create git tag
+      - name: Create tag safely
         run: |
-          git tag py-v${{ steps.version_bump.outputs.new_version }}
-          git push origin py-v${{ steps.version_bump.outputs.new_version }}
+          TAG="py-v${{ steps.version_bump.outputs.new_version }}"
+
+          git fetch --tags
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag already exists"
+          else
+            git tag $TAG
+            git push origin $TAG
+          fi
 
       - name: Publish to PyPI
         if: ${{ !inputs.dry_run }}
@@ -153,7 +164,7 @@ jobs:
         run: |
           twine upload dist/*
 
-      - name: Publish to Test PyPI (dry run)
+      - name: Publish to TestPyPI
         if: ${{ inputs.dry_run }}
         working-directory: packages/python/redpillx
         env:
@@ -187,7 +198,7 @@ jobs:
 
             result = rp.generate_spec(
                 data=your_data,
-                prompt="show tickets by status."
+                prompt="show tickets by status"
             )
             ```
           token: ${{ secrets.PAT_TOKEN }}
