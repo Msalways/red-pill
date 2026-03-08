@@ -121,19 +121,19 @@ jobs:
           EOF
 
       - name: Build package
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           pip install build
           python -m build
 
       - name: Check package
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           pip install twine
           twine check dist/*
 
       - name: Commit version bump
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -156,7 +156,7 @@ jobs:
 
       - name: Publish to PyPI
         if: ${{ !inputs.dry_run }}
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
@@ -164,7 +164,7 @@ jobs:
 
       - name: Dry run — publish to Test PyPI
         if: ${{ inputs.dry_run }}
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -186,11 +186,11 @@ jobs:
           body: |
             ## Redpill Python SDK v${{ steps.version_bump.outputs.new_version }}
 
-            **Install:** `pip install redpill==${{ steps.version_bump.outputs.new_version }}`
+            **Install:** `pip install redpillx==${{ steps.version_bump.outputs.new_version }}`
 
             ### Quick start
             ```python
-            from redpill import Redpill
+            from redpillx import Redpill
             rp = Redpill().llm(your_llm_fn).build()
             result = rp.generate_spec(data=your_data, prompt="show tickets by status")
             ```

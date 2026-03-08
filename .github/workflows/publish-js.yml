@@ -75,102 +75,61 @@ jobs:
         working-directory: packages/js/redpill
         run: npm run build
 
-      # ----------------------------
-      # Reset JS SDK repo properly
-      # ----------------------------
       - name: Reset JS submodule
         run: |
           cd packages/js
-
           git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/Msalways/red-pill-js.git
-
           git fetch origin
-
-          # move from detached HEAD to real branch
           git checkout -B master origin/master
-
-          # ensure clean state
           git reset --hard origin/master
-
           git status
 
-      # ----------------------------
-      # Version bump
-      # ----------------------------
       - name: Bump version
         id: version_bump
         working-directory: packages/js/redpill
         run: |
           NEW_VERSION=$(npm version ${{ inputs.version_type }} --no-git-tag-version)
-
           echo "new_version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
           echo "tag_name=${NEW_VERSION}" >> $GITHUB_OUTPUT
-
           echo "Bumped version to $NEW_VERSION"
 
-      # ----------------------------
-      # Commit version to JS repo
-      # ----------------------------
       - name: Commit version bump to JS repo
         run: |
           cd packages/js
-
           git add redpill/package.json
-
           git commit -m "chore(js-sdk): release v${{ steps.version_bump.outputs.new_version }}" || true
-
           git push origin master
 
-      # ----------------------------
-      # Create git tag
-      # ----------------------------
       - name: Create git tag
         run: |
           cd packages/js
-
-          git tag "js-v${{ steps.version_bump.outputs.new_version }}" \
-            -m "JS SDK v${{ steps.version_bump.outputs.new_version }}"
-
+          git tag "js-v${{ steps.version_bump.outputs.new_version }}" -m "JS SDK v${{ steps.version_bump.outputs.new_version }}"
           git push origin "js-v${{ steps.version_bump.outputs.new_version }}"
 
-      # ----------------------------
-      # Update monorepo submodule
-      # ----------------------------
       - name: Update submodule reference in monorepo
         run: |
           git add packages/js
-
           git commit -m "chore: update js submodule to v${{ steps.version_bump.outputs.new_version }}" || true
-
           git push
 
-      # ----------------------------
-      # NPM authentication
-      # ----------------------------
-      - name: Setup npm authentication
+      - name: Verify npm authentication
         if: ${{ !inputs.dry_run }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # ----------------------------
-      # Publish to npm
-      # ----------------------------
       - name: Publish to npm
         if: ${{ !inputs.dry_run }}
         working-directory: packages/js/redpill
         run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # ----------------------------
-      # Dry run publish
-      # ----------------------------
       - name: Dry run publish
         if: ${{ inputs.dry_run }}
         working-directory: packages/js/redpill
         run: npm publish --dry-run
 
-      # ----------------------------
-      # GitHub release
-      # ----------------------------
       - name: Create GitHub Release
         if: ${{ !inputs.dry_run }}
         uses: softprops/action-gh-release@v2
@@ -182,8 +141,8 @@ jobs:
             ## Redpill JS SDK v${{ steps.version_bump.outputs.new_version }}
 
             Install:
-
             npm install redpillx@${{ steps.version_bump.outputs.new_version }}
 
             See the README for usage examples.
-          token: ${{ secrets.PAT_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
