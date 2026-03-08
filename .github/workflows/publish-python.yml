@@ -57,15 +57,15 @@ jobs:
           cache-dependency-path: packages/python/redpill/pyproject.toml
 
       - name: Install package + dev deps
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
       - name: Run tests
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: pytest tests/ -v
-      
+        
       - name: Reset submodule to remote state
         run: |
           cd packages/python
@@ -75,7 +75,7 @@ jobs:
 
       - name: Bump version
         id: version_bump
-        working-directory: packages/python/redpill
+        working-directory: packages/python/redpillx
         run: |
           python - <<'EOF'
           import re, sys
